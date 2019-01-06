@@ -10,11 +10,14 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
+#include <pru_mylinuxdrone.h>
 
 
 #define MPU6050_DEVICE_NAME             "/dev/iio:device1"
 #define MPU6050_BUFF_SIZE 12
-int16_t mpu6050Data[6] = {0};
+unsigned char mpu6050Data[sizeof(PrbMessageType)] = {0};
+PrbMessageType* mpu6050DataStruct = (PrbMessageType*)mpu6050Data;
+
 struct  timeval now; // wall clock times
 struct  timeval later;
 uint32_t usec;
@@ -39,11 +42,13 @@ void closeMpu6050() {
     fclose(fd);
 }
 void readMpu6050() {
-    fread(mpu6050Data, 12, 1, fd);
+    fread(mpu6050Data, sizeof(PrbMessageType), 1, fd);
 }
 
 int main(void)
 {
+    syslog(LOG_INFO, "PrbMessageType size=[%d]", sizeof(PrbMessageType));
+
     gettimeofday(&now, NULL); // wall clock time when CPU time first read
     gettimeofday(&later, NULL); // wall clock time when CPU time has ticked
     openMpu6050();
@@ -52,7 +57,14 @@ int main(void)
         gettimeofday(&later, NULL); // wall clock time when CPU time has ticked
         usec = (((unsigned long long)later.tv_sec) * 1000000ULL + later.tv_usec) - (((unsigned long long)now.tv_sec) * 1000000ULL + now.tv_usec);
         if(usec > 1200) {
-            syslog(LOG_INFO, "usec[%d], a[%d,%d,%d], g[%d,%d,%d]", usec, mpu6050Data[0], mpu6050Data[1], mpu6050Data[2], mpu6050Data[3], mpu6050Data[4], mpu6050Data[5]);
+            syslog(LOG_INFO, "usec[%d], a[%d,%d,%d], g[%d,%d,%d]", usec,
+                   mpu6050DataStruct->mpu_accel_gyro.ax,
+                   mpu6050DataStruct->mpu_accel_gyro.ay,
+                   mpu6050DataStruct->mpu_accel_gyro.az,
+                   mpu6050DataStruct->mpu_accel_gyro.gx,
+                   mpu6050DataStruct->mpu_accel_gyro.gy,
+                   mpu6050DataStruct->mpu_accel_gyro.gz
+                               );
         }
         gettimeofday(&now, NULL); // wall clock time when CPU time first read
 
